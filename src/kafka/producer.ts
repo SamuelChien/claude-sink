@@ -1,4 +1,4 @@
-import { Kafka, Producer } from 'kafkajs';
+import { Kafka, Producer, CompressionTypes } from 'kafkajs';
 import logger from '../utils/logger';
 import type { KafkaConfig, ProducerConfig } from './config';
 import type { ConsumptionChunk } from '../types/chunk';
