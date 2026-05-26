@@ -3,6 +3,7 @@ import { runSkills } from './commands/skills';
 import { runSessions } from './commands/sessions';
 import { runCode } from './commands/code';
 import { runAll } from './commands/all';
+import { runConsume } from './commands/consume';
 import { setLogLevel } from './utils/logger';
 
 export function createCli(): Command {
@@ -109,6 +110,29 @@ export function createCli(): Command {
         skillsDir: opts.skillsDir,
         codeDir: opts.codeDir,
         sessionsDir: opts.sessionsDir,
+      });
+    });
+
+  program
+    .command('consume')
+    .description('Consume and process messages from Kafka topics')
+    .argument('<type>', 'Source type: skills | sessions | code | all')
+    .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
+    .option('--group-id <id>', 'Consumer group ID')
+    .option('--batch-size <n>', 'Messages per processing batch', '50')
+    .option('--from-beginning', 'Start from earliest offset', true)
+    .option('--no-from-beginning', 'Start from latest offset')
+    .option('--dry-run', 'Process without producing output', false)
+    .option('-v, --verbose', 'Verbose logging', false)
+    .option('-q, --quiet', 'Suppress all output except errors', false)
+    .action(async (type: string, opts) => {
+      applyLogLevel(opts);
+      await runConsume(type, {
+        brokers: opts.brokers,
+        groupId: opts.groupId,
+        batchSize: parseInt(opts.batchSize, 10),
+        fromBeginning: opts.fromBeginning,
+        dryRun: opts.dryRun,
       });
     });
 

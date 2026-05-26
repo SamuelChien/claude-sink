@@ -14,6 +14,16 @@ export interface ProducerConfig {
   dryRun: boolean;
 }
 
+export interface ConsumerConfig {
+  groupId: string;
+  inputTopic: string;
+  outputTopic: string;
+  dlqTopic: string;
+  batchSize: number;
+  fromBeginning: boolean;
+  dryRun: boolean;
+}
+
 export function buildKafkaConfig(brokers: string): KafkaConfig {
   return {
     brokers: brokers.split(',').map(b => b.trim()),
