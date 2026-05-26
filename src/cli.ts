@@ -4,6 +4,7 @@ import { runSessions } from './commands/sessions';
 import { runCode } from './commands/code';
 import { runAll } from './commands/all';
 import { runConsume } from './commands/consume';
+import { runSetup } from './commands/setup';
 import { setLogLevel } from './utils/logger';
 
 export function createCli(): Command {
@@ -134,6 +135,17 @@ export function createCli(): Command {
         fromBeginning: opts.fromBeginning,
         dryRun: opts.dryRun,
       });
+    });
+
+  program
+    .command('setup')
+    .description('Verify Kafka connectivity, provision topics, run hello-world test')
+    .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
+    .option('-v, --verbose', 'Verbose logging', false)
+    .option('-q, --quiet', 'Suppress all output except errors', false)
+    .action(async (opts) => {
+      applyLogLevel(opts);
+      await runSetup({ brokers: opts.brokers });
     });
 
   return program;

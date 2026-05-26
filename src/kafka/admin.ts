@@ -6,18 +6,22 @@ export interface TopicSpec {
   topic: string;
   numPartitions: number;
   replicationFactor: number;
+  retentionMs?: string;
 }
 
+const WEEK_MS = '604800000';
+const MONTH_MS = '2592000000';
+
 export const ALL_TOPICS: TopicSpec[] = [
-  { topic: 'sink.skills', numPartitions: 6, replicationFactor: 1 },
-  { topic: 'sink.sessions', numPartitions: 3, replicationFactor: 1 },
-  { topic: 'sink.code', numPartitions: 6, replicationFactor: 1 },
-  { topic: 'sink.skills.analyzed', numPartitions: 6, replicationFactor: 1 },
-  { topic: 'sink.sessions.analyzed', numPartitions: 3, replicationFactor: 1 },
-  { topic: 'sink.code.analyzed', numPartitions: 6, replicationFactor: 1 },
-  { topic: 'sink.skills.dlq', numPartitions: 1, replicationFactor: 1 },
-  { topic: 'sink.sessions.dlq', numPartitions: 1, replicationFactor: 1 },
-  { topic: 'sink.code.dlq', numPartitions: 1, replicationFactor: 1 },
+  { topic: 'sink.skills', numPartitions: 6, replicationFactor: 1, retentionMs: WEEK_MS },
+  { topic: 'sink.sessions', numPartitions: 3, replicationFactor: 1, retentionMs: WEEK_MS },
+  { topic: 'sink.code', numPartitions: 6, replicationFactor: 1, retentionMs: WEEK_MS },
+  { topic: 'sink.skills.analyzed', numPartitions: 6, replicationFactor: 1, retentionMs: MONTH_MS },
+  { topic: 'sink.sessions.analyzed', numPartitions: 3, replicationFactor: 1, retentionMs: MONTH_MS },
+  { topic: 'sink.code.analyzed', numPartitions: 6, replicationFactor: 1, retentionMs: MONTH_MS },
+  { topic: 'sink.skills.dlq', numPartitions: 1, replicationFactor: 1, retentionMs: MONTH_MS },
+  { topic: 'sink.sessions.dlq', numPartitions: 1, replicationFactor: 1, retentionMs: MONTH_MS },
+  { topic: 'sink.code.dlq', numPartitions: 1, replicationFactor: 1, retentionMs: MONTH_MS },
 ];
 
 export async function provisionTopics(kafkaConfig: KafkaConfig, topics: TopicSpec[] = ALL_TOPICS): Promise<void> {
@@ -37,9 +41,15 @@ export async function provisionTopics(kafkaConfig: KafkaConfig, topics: TopicSpe
     const toResize = topics.filter(t => existing.includes(t.topic));
 
     if (toCreate.length > 0) {
-      await admin.createTopics({ topics: toCreate });
+      await admin.createTopics({
+        topics: toCreate.map(t => ({
+          ...t,
+          configEntries: t.retentionMs ? [{ name: 'retention.ms', value: t.retentionMs }] : [],
+        })),
+      });
       for (const t of toCreate) {
-        logger.info(`Created topic: ${t.topic} (${t.numPartitions} partitions)`);
+        const retention = t.retentionMs ? `, retention=${parseInt(t.retentionMs) / 86400000}d` : '';
+        logger.info(`Created topic: ${t.topic} (${t.numPartitions} partitions${retention})`);
       }
     }
 

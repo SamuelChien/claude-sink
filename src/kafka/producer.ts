@@ -70,6 +70,7 @@ export class SinkProducer {
 
       await this.producer.send({
         topic: this.config.topic,
+        compression: CompressionTypes.GZIP,
         messages,
       });
 

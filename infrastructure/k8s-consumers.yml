@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sink-consumer-config
+  namespace: kafka
+data:
+  KAFKA_BROKERS: "kafka.kafka.svc.cluster.local:29092"
+  BATCH_SIZE: "50"
+  LOG_LEVEL: "info"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skills-consumer
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skills-consumer
+  template:
+    metadata:
+      labels:
+        app: skills-consumer
+        component: consumer
+    spec:
+      containers:
+      - name: consumer
+        image: node:20-slim
+        workingDir: /app
+        command: ["node", "dist/index.js", "consume", "skills", "-b", "$(KAFKA_BROKERS)"]
+        envFrom:
+        - configMapRef:
+            name: sink-consumer-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sessions-consumer
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sessions-consumer
+  template:
+    metadata:
+      labels:
+        app: sessions-consumer
+        component: consumer
+    spec:
+      containers:
+      - name: consumer
+        image: node:20-slim
+        workingDir: /app
+        command: ["node", "dist/index.js", "consume", "sessions", "-b", "$(KAFKA_BROKERS)"]
+        envFrom:
+        - configMapRef:
+            name: sink-consumer-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-consumer
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: code-consumer
+  template:
+    metadata:
+      labels:
+        app: code-consumer
+        component: consumer
+    spec:
+      containers:
+      - name: consumer
+        image: node:20-slim
+        workingDir: /app
+        command: ["node", "dist/index.js", "consume", "code", "-b", "$(KAFKA_BROKERS)"]
+        envFrom:
+        - configMapRef:
+            name: sink-consumer-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
