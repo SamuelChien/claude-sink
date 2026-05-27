@@ -26,19 +26,18 @@ spec:
     spec:
       containers:
       - name: consumer
-        image: node:20-slim
-        workingDir: /app
-        command: ["node", "dist/index.js", "consume", "skills", "-b", "$(KAFKA_BROKERS)"]
+        image: gcr.io/blobfish-ai-429200/claude-sink:latest
+        args: ["consume", "skills", "-b", "$(KAFKA_BROKERS)"]
         envFrom:
         - configMapRef:
             name: sink-consumer-config
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100m"
+            cpu: "50m"
           limits:
             memory: "512Mi"
-            cpu: "500m"
+            cpu: "250m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -58,19 +57,18 @@ spec:
     spec:
       containers:
       - name: consumer
-        image: node:20-slim
-        workingDir: /app
-        command: ["node", "dist/index.js", "consume", "sessions", "-b", "$(KAFKA_BROKERS)"]
+        image: gcr.io/blobfish-ai-429200/claude-sink:latest
+        args: ["consume", "sessions", "-b", "$(KAFKA_BROKERS)"]
         envFrom:
         - configMapRef:
             name: sink-consumer-config
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100m"
+            cpu: "50m"
           limits:
             memory: "512Mi"
-            cpu: "500m"
+            cpu: "250m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -90,16 +88,15 @@ spec:
     spec:
       containers:
       - name: consumer
-        image: node:20-slim
-        workingDir: /app
-        command: ["node", "dist/index.js", "consume", "code", "-b", "$(KAFKA_BROKERS)"]
+        image: gcr.io/blobfish-ai-429200/claude-sink:latest
+        args: ["consume", "code", "-b", "$(KAFKA_BROKERS)"]
         envFrom:
         - configMapRef:
             name: sink-consumer-config
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100m"
+            cpu: "50m"
           limits:
             memory: "512Mi"
-            cpu: "500m"
+            cpu: "250m"

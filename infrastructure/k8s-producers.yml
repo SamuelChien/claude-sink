@@ -46,8 +46,9 @@ spec:
             args:
             - |
               if [ -d /data/skills/.git ]; then
-                cd /data/skills && git pull --ff-only
+                cd /data/skills && git pull --ff-only 2>/dev/null || true
               else
+                rm -rf /data/skills
                 git clone --depth 1 https://github.com/SamuelChien/mega-skills-directory.git /data/skills
               fi
             volumeMounts:
