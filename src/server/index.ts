@@ -27,8 +27,21 @@ export async function startServer(options: ServerOptions): Promise<void> {
 
   const stats = { requests: 0, chunks: 0, errors: 0, byTopic: {} as Record<string, number>, startedAt: Date.now() };
 
+  const apiKey = process.env.SINK_API_KEY;
+
   const app = express();
   app.use(express.json({ limit: '50mb' }));
+
+  if (apiKey) {
+    app.use('/api', (req: Request, res: Response, next) => {
+      if (req.headers['x-api-key'] !== apiKey) {
+        res.status(401).json({ error: 'Invalid or missing X-API-Key' });
+        return;
+      }
+      next();
+    });
+    logger.info('API key auth enabled');
+  }
 
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok', topics: [...producers.keys()] });

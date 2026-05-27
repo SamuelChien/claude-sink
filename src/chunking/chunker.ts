@@ -7,7 +7,8 @@ import type { RawCodeFile } from '../types/code';
 const MAX_CHUNK_BYTES = 900_000;
 
 export function chunkSkill(skill: RawSkill): ConsumptionChunk {
-  const content = JSON.stringify(skill);
+  const content = JSON.stringify({ ...skill, timestamp: undefined });
+  const contentHash = sha256(content);
   const metadata: SkillMetadata = {
     type: 'skill',
     name: skill.name,
@@ -26,14 +27,14 @@ export function chunkSkill(skill: RawSkill): ConsumptionChunk {
   };
 
   return {
-    chunkId: sha256(`skill:${skill.id}`),
+    chunkId: sha256(`skill:${skill.id}:${contentHash}`),
     sourceType: 'skill',
     sourceId: skill.id,
     sourcePath: skill.filePath,
     timestamp: Date.now(),
     content,
     contentLength: Buffer.byteLength(content),
-    contentHash: sha256(content),
+    contentHash,
     metadata,
   };
 }
@@ -54,18 +55,19 @@ export function chunkSession(session: RawSession): ConsumptionChunk[] {
     hasMetadata: session.metadata !== undefined,
   };
 
-  const fullContent = JSON.stringify(session);
+  const fullContent = JSON.stringify({ ...session, timestamp: undefined });
+  const fullHash = sha256(fullContent);
 
   if (Buffer.byteLength(fullContent) <= MAX_CHUNK_BYTES) {
     return [{
-      chunkId: sha256(`session:${session.sessionId}`),
+      chunkId: sha256(`session:${session.sessionId}:${fullHash}`),
       sourceType: 'session',
       sourceId: session.sessionId,
       sourcePath: session.filePath,
       timestamp: Date.now(),
       content: fullContent,
       contentLength: Buffer.byteLength(fullContent),
-      contentHash: sha256(fullContent),
+      contentHash: fullHash,
       metadata,
     }];
   }
@@ -83,22 +85,30 @@ export function chunkSession(session: RawSession): ConsumptionChunk[] {
       end++;
     }
 
-    const slicedSession = { ...session, messages: messages.slice(start, end) };
+    if (end === start + 1) {
+      const singleCheck = { ...session, messages: messages.slice(start, start + 1) };
+      if (Buffer.byteLength(JSON.stringify(singleCheck)) > MAX_CHUNK_BYTES) {
+        end = start + 1;
+      }
+    }
+
+    const slicedSession = { ...session, messages: messages.slice(start, Math.max(end, start + 1)) };
     const content = JSON.stringify(slicedSession);
+    const contentHash = sha256(content);
 
     chunks.push({
-      chunkId: sha256(`session:${session.sessionId}:${chunkIndex}`),
+      chunkId: sha256(`session:${session.sessionId}:${chunkIndex}:${contentHash}`),
       sourceType: 'session',
       sourceId: session.sessionId,
       sourcePath: session.filePath,
       timestamp: Date.now(),
       content,
       contentLength: Buffer.byteLength(content),
-      contentHash: sha256(content),
+      contentHash,
       metadata,
     });
 
-    start = end;
+    start = Math.max(end, start + 1);
     chunkIndex++;
   }
 
@@ -118,15 +128,16 @@ export function chunkCodeFile(file: RawCodeFile): ConsumptionChunk {
   };
 
   const content = JSON.stringify(file);
+  const contentHash = sha256(content);
   return {
-    chunkId: sha256(`code:${file.projectName}:${file.relativePath}`),
+    chunkId: sha256(`code:${file.projectName}:${file.relativePath}:${contentHash}`),
     sourceType: 'code',
     sourceId: file.relativePath,
     sourcePath: file.absolutePath,
     timestamp: Date.now(),
     content,
     contentLength: Buffer.byteLength(content),
-    contentHash: sha256(content),
+    contentHash,
     metadata,
   };
 }

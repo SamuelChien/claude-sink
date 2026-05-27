@@ -27,6 +27,7 @@ export function createCli(): Command {
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
     .option('--max-depth <n>', 'Max directory depth for recursive search', '5')
     .option('--limit <n>', 'Max number of skills to ingest (0 = all)', '0')
+    .option('--force', 'Skip dedup, re-produce all files', false)
     .option('-v, --verbose', 'Verbose logging', false)
     .option('-q, --quiet', 'Suppress all output except errors', false)
     .action(async (dir: string, opts) => {
@@ -39,6 +40,7 @@ export function createCli(): Command {
         dryRun: opts.dryRun,
         maxDepth: parseInt(opts.maxDepth, 10),
         limit: parseInt(opts.limit, 10),
+        force: opts.force,
       });
     });
 
@@ -54,6 +56,7 @@ export function createCli(): Command {
     .option('--limit <n>', 'Max sessions to ingest (0 = all)', '0')
     .option('--since <date>', 'Only sessions after this ISO date')
     .option('--project <name>', 'Filter to specific project')
+    .option('--force', 'Skip dedup, re-produce all files', false)
     .option('-v, --verbose', 'Verbose logging', false)
     .option('-q, --quiet', 'Suppress all output except errors', false)
     .action(async (dir: string | undefined, opts) => {
@@ -67,6 +70,7 @@ export function createCli(): Command {
         limit: parseInt(opts.limit, 10),
         since: opts.since,
         project: opts.project,
+        force: opts.force,
       });
     });
 
@@ -82,6 +86,7 @@ export function createCli(): Command {
     .option('--exclude <dirs...>', 'Additional directory names to exclude')
     .option('--max-file-size <bytes>', 'Skip files larger than this', '1048576')
     .option('--limit <n>', 'Max files to ingest (0 = all)', '0')
+    .option('--force', 'Skip dedup, re-produce all files', false)
     .option('-v, --verbose', 'Verbose logging', false)
     .option('-q, --quiet', 'Suppress all output except errors', false)
     .action(async (dir: string, opts) => {
@@ -95,6 +100,7 @@ export function createCli(): Command {
         exclude: opts.exclude,
         maxFileSize: parseInt(opts.maxFileSize, 10),
         limit: parseInt(opts.limit, 10),
+        force: opts.force,
       });
     });
 
