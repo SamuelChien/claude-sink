@@ -1,0 +1,189 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sink-producer-config
+  namespace: kafka
+data:
+  KAFKA_BROKERS: "kafka.kafka.svc.cluster.local:29092"
+  KAFKAJS_NO_PARTITIONER_WARNING: "1"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: skills-repo
+  namespace: kafka
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skills-producer
+  namespace: kafka
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app: skills-producer
+            component: producer
+        spec:
+          restartPolicy: Never
+          initContainers:
+          - name: clone-skills
+            image: alpine/git:latest
+            command: ["sh", "-c"]
+            args:
+            - |
+              if [ -d /data/skills/.git ]; then
+                cd /data/skills && git pull --ff-only
+              else
+                git clone --depth 1 https://github.com/SamuelChien/mega-skills-directory.git /data/skills
+              fi
+            volumeMounts:
+            - name: skills-repo
+              mountPath: /data/skills
+          containers:
+          - name: producer
+            image: gcr.io/blobfish-ai-429200/claude-sink:latest
+            args: ["skills", "/data/skills", "-b", "$(KAFKA_BROKERS)"]
+            envFrom:
+            - configMapRef:
+                name: sink-producer-config
+            volumeMounts:
+            - name: skills-repo
+              mountPath: /data/skills
+              readOnly: true
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "50m"
+              limits:
+                memory: "512Mi"
+                cpu: "250m"
+          volumes:
+          - name: skills-repo
+            persistentVolumeClaim:
+              claimName: skills-repo
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sessions-producer
+  namespace: kafka
+spec:
+  schedule: "15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app: sessions-producer
+            component: producer
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: producer
+            image: gcr.io/blobfish-ai-429200/claude-sink:latest
+            args: ["sessions", "/claude-data", "-b", "$(KAFKA_BROKERS)"]
+            envFrom:
+            - configMapRef:
+                name: sink-producer-config
+            volumeMounts:
+            - name: claude-data
+              mountPath: /claude-data
+              readOnly: true
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "50m"
+              limits:
+                memory: "512Mi"
+                cpu: "250m"
+          volumes:
+          - name: claude-data
+            hostPath:
+              path: /home/.claude
+              type: DirectoryOrCreate
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: code-producer
+  namespace: kafka
+spec:
+  schedule: "30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app: code-producer
+            component: producer
+        spec:
+          restartPolicy: Never
+          initContainers:
+          - name: clone-repos
+            image: alpine/git:latest
+            command: ["sh", "-c"]
+            args:
+            - |
+              for repo in claude-sink email-intelligence-pipeline skills-intelligence-pipeline claude-sessions-pipeline; do
+                if [ -d /data/$repo/.git ]; then
+                  cd /data/$repo && git pull --ff-only 2>/dev/null || true
+                else
+                  git clone --depth 1 https://github.com/SamuelChien/$repo.git /data/$repo 2>/dev/null || true
+                fi
+              done
+            volumeMounts:
+            - name: code-data
+              mountPath: /data
+          containers:
+          - name: producer
+            image: gcr.io/blobfish-ai-429200/claude-sink:latest
+            command: ["sh", "-c"]
+            args:
+            - |
+              for dir in /data/*/; do
+                if [ -d "$dir" ]; then
+                  echo "Ingesting $dir"
+                  node dist/index.js code "$dir" -b "$KAFKA_BROKERS"
+                fi
+              done
+            envFrom:
+            - configMapRef:
+                name: sink-producer-config
+            volumeMounts:
+            - name: code-data
+              mountPath: /data
+              readOnly: true
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "50m"
+              limits:
+                memory: "512Mi"
+                cpu: "250m"
+          volumes:
+          - name: code-data
+            emptyDir: {}
