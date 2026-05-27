@@ -25,11 +25,36 @@ export async function startServer(options: ServerOptions): Promise<void> {
     producers.set(topic, producer);
   }
 
+  const stats = { requests: 0, chunks: 0, errors: 0, byTopic: {} as Record<string, number>, startedAt: Date.now() };
+
   const app = express();
   app.use(express.json({ limit: '50mb' }));
 
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok', topics: [...producers.keys()] });
+  });
+
+  app.get('/metrics', (_req: Request, res: Response) => {
+    const uptime = (Date.now() - stats.startedAt) / 1000;
+    const lines = [
+      '# HELP sink_requests_total Total ingestion requests',
+      '# TYPE sink_requests_total counter',
+      `sink_requests_total ${stats.requests}`,
+      '# HELP sink_chunks_total Total chunks ingested',
+      '# TYPE sink_chunks_total counter',
+      `sink_chunks_total ${stats.chunks}`,
+      '# HELP sink_errors_total Total ingestion errors',
+      '# TYPE sink_errors_total counter',
+      `sink_errors_total ${stats.errors}`,
+      '# HELP sink_uptime_seconds Server uptime',
+      '# TYPE sink_uptime_seconds gauge',
+      `sink_uptime_seconds ${uptime}`,
+      '# HELP sink_chunks_by_topic Chunks ingested per topic',
+      '# TYPE sink_chunks_by_topic counter',
+      ...Object.entries(stats.byTopic).map(([t, n]) => `sink_chunks_by_topic{topic="${t}"} ${n}`),
+    ];
+    res.set('Content-Type', 'text/plain');
+    res.send(lines.join('\n') + '\n');
   });
 
   app.post('/api/ingest', async (req: Request, res: Response) => {
@@ -48,8 +73,12 @@ export async function startServer(options: ServerOptions): Promise<void> {
 
     try {
       const sent = await producer.sendChunks(chunks);
+      stats.requests++;
+      stats.chunks += sent;
+      stats.byTopic[topic] = (stats.byTopic[topic] || 0) + sent;
       res.json({ ok: true, sent, topic });
     } catch (err) {
+      stats.errors++;
       logger.error(`Ingest error: ${(err as Error).message}`);
       res.status(500).json({ error: (err as Error).message });
     }

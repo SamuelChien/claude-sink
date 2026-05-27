@@ -1,0 +1,293 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Ingestion Pipeline",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Total Messages per Topic",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kafka_consumergroup_current_offset_sum{consumergroup=\"sink-skills-processor\",topic=\"sink.skills\"}",
+          "legendFormat": "skills"
+        },
+        {
+          "expr": "kafka_consumergroup_current_offset_sum{consumergroup=\"sink-sessions-processor\",topic=\"sink.sessions\"}",
+          "legendFormat": "sessions"
+        },
+        {
+          "expr": "kafka_consumergroup_current_offset_sum{consumergroup=\"sink-code-processor\",topic=\"sink.code\"}",
+          "legendFormat": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "blue", "value": 1000 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" }
+    },
+    {
+      "title": "Topic Partition Offsets",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 16, "x": 8, "y": 1 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=~\"sink\\\\.(skills|sessions|code)\"}) by (topic)",
+          "legendFormat": "{{topic}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2, "spanNulls": true },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "title": "Consumer Health",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "collapsed": false
+    },
+    {
+      "title": "Consumer Lag",
+      "description": "Messages waiting to be consumed. High lag = consumers falling behind.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kafka_consumergroup_lag_sum{consumergroup=~\"sink-.*-processor\"}",
+          "legendFormat": "{{consumergroup}} / {{topic}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 30, "lineWidth": 2, "spanNulls": true },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Consumer Lag per Partition",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kafka_consumergroup_lag{consumergroup=~\"sink-.*\",topic=~\"sink\\\\..*\"}",
+          "legendFormat": "{{consumergroup}} {{topic}} p{{partition}}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "renameByName": { "Value": "lag" }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "lag" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 10 },
+                    { "color": "red", "value": 100 }
+                  ]
+                }
+              },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Consumer Group Members",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kafka_consumergroup_members{consumergroup=~\"sink-.*-processor\"}",
+          "legendFormat": "{{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "textMode": "value_and_name" }
+    },
+    {
+      "title": "Pipeline Coverage",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "collapsed": false
+    },
+    {
+      "title": "Raw vs Analyzed (skills)",
+      "type": "bargauge",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 21 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.skills\"})",
+          "legendFormat": "raw"
+        },
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.skills.analyzed\"})",
+          "legendFormat": "analyzed"
+        },
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.skills.dlq\"})",
+          "legendFormat": "DLQ"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }] } },
+        "overrides": [{ "matcher": { "id": "byName", "options": "DLQ" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }]
+      },
+      "options": { "orientation": "horizontal", "displayMode": "gradient" }
+    },
+    {
+      "title": "Raw vs Analyzed (sessions)",
+      "type": "bargauge",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 21 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.sessions\"})",
+          "legendFormat": "raw"
+        },
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.sessions.analyzed\"})",
+          "legendFormat": "analyzed"
+        },
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.sessions.dlq\"})",
+          "legendFormat": "DLQ"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }] } },
+        "overrides": [{ "matcher": { "id": "byName", "options": "DLQ" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }]
+      },
+      "options": { "orientation": "horizontal", "displayMode": "gradient" }
+    },
+    {
+      "title": "Raw vs Analyzed (code)",
+      "type": "bargauge",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 21 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.code\"})",
+          "legendFormat": "raw"
+        },
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.code.analyzed\"})",
+          "legendFormat": "analyzed"
+        },
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=\"sink.code.dlq\"})",
+          "legendFormat": "DLQ"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }] } },
+        "overrides": [{ "matcher": { "id": "byName", "options": "DLQ" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }]
+      },
+      "options": { "orientation": "horizontal", "displayMode": "gradient" }
+    },
+    {
+      "title": "Infrastructure",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false
+    },
+    {
+      "title": "Broker Count",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 28 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "kafka_brokers", "legendFormat": "brokers" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" } } }
+    },
+    {
+      "title": "Total Partitions",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 28 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(kafka_topic_partitions{topic=~\"sink\\\\..*\"})", "legendFormat": "partitions" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } }
+    },
+    {
+      "title": "ISR Count",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 28 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(kafka_topic_partition_in_sync_replica{topic=~\"sink\\\\..*\"})", "legendFormat": "in-sync replicas" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "green" } } }
+    },
+    {
+      "title": "Under-Replicated",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 28 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(kafka_topic_partition_under_replicated_partition{topic=~\"sink\\\\..*\"})", "legendFormat": "under-replicated" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["kafka", "claude-sink", "ingestion"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "Claude Sink — Kafka Ingestion Health",
+  "uid": "claude-sink-kafka-health",
+  "version": 1
+}

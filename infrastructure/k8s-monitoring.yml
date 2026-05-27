@@ -1,0 +1,429 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: 'kafka-jmx'
+        static_configs:
+          - targets: ['kafka-metrics-exporter.kafka.svc.cluster.local:9308']
+      - job_name: 'sink-server'
+        static_configs:
+          - targets: ['sink-server.kafka.svc.cluster.local:3000']
+        metrics_path: /metrics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.51.0
+        ports:
+        - containerPort: 9090
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.retention.time=7d
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "50m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - port: 9090
+    targetPort: 9090
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provider
+  namespace: monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: default
+        folder: ''
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-kafka
+  namespace: monitoring
+data:
+  kafka-ingestion-health.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Kafka Ingestion Health",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "collapsed": false
+        },
+        {
+          "title": "Messages In (rate/min)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_count{topic=~\"sink\\\\..*\"}[5m])) by (topic) * 60",
+              "legendFormat": "{{topic}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 20, "lineWidth": 2 },
+              "unit": "msg/min"
+            }
+          }
+        },
+        {
+          "title": "Bytes In (rate/sec)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(kafka_server_brokertopicmetrics_bytesinpersec_count{topic=~\"sink\\\\..*\"}[5m])) by (topic)",
+              "legendFormat": "{{topic}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 20, "lineWidth": 2 },
+              "unit": "Bps"
+            }
+          }
+        },
+        {
+          "title": "Topic Offsets (total messages)",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 24, "x": 0, "y": 9 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "kafka_log_log_size{topic=~\"sink\\\\..*\"}",
+              "legendFormat": "{{topic}}-p{{partition}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 5000 },
+                  { "color": "red", "value": 10000 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Consumer Pipeline",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+          "collapsed": false
+        },
+        {
+          "title": "Consumer Lag",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(kafka_consumer_consumer_fetch_manager_metrics_records_lag{topic=~\"sink\\\\..*\"}) by (topic, client_id)",
+              "legendFormat": "{{client_id}} / {{topic}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 100 },
+                  { "color": "red", "value": 1000 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Consumer Throughput (records/sec)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(kafka_consumer_consumer_fetch_manager_metrics_records_consumed_total{topic=~\"sink\\\\..*\"}[5m])) by (topic)",
+              "legendFormat": "{{topic}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 20, "lineWidth": 2 },
+              "unit": "rec/s"
+            }
+          }
+        },
+        {
+          "title": "DLQ Messages",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 23 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "kafka_log_log_size{topic=~\"sink\\\\..*\\\\.dlq\"}",
+              "legendFormat": "{{topic}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "red" },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 10 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Analyzed vs Raw",
+          "type": "bargauge",
+          "gridPos": { "h": 4, "w": 16, "x": 8, "y": 23 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "kafka_log_log_size{topic=~\"sink\\\\.(skills|sessions|code)$\"}",
+              "legendFormat": "raw: {{topic}}"
+            },
+            {
+              "expr": "kafka_log_log_size{topic=~\"sink\\\\.(skills|sessions|code)\\\\.analyzed$\"}",
+              "legendFormat": "analyzed: {{topic}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Infrastructure",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+          "collapsed": false
+        },
+        {
+          "title": "Kafka Disk Usage",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 28 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(kafka_log_log_size) / 1073741824",
+              "legendFormat": "Total GB"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "decgbytes",
+              "max": 10,
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 5 },
+                  { "color": "red", "value": 8 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Active Partitions",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 28 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "count(kafka_log_log_size{topic=~\"sink\\\\..*\"})",
+              "legendFormat": "partitions"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "blue" }
+            }
+          }
+        },
+        {
+          "title": "Broker Request Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 28 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(kafka_network_requestmetrics_requestspersec_count[5m])) by (request)",
+              "legendFormat": "{{request}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 1 },
+              "unit": "req/s"
+            }
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["kafka", "claude-sink", "ingestion"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Claude Sink — Kafka Ingestion Health",
+      "uid": "claude-sink-kafka-health",
+      "version": 1
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.4.0
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "claudesink"
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: "true"
+        - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+          value: "Viewer"
+        volumeMounts:
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: dashboards-provider
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboards
+          mountPath: /var/lib/grafana/dashboards
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      volumes:
+      - name: datasources
+        configMap:
+          name: grafana-datasources
+      - name: dashboards-provider
+        configMap:
+          name: grafana-dashboards-provider
+      - name: dashboards
+        configMap:
+          name: grafana-dashboard-kafka
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  type: LoadBalancer
+  selector:
+    app: grafana
+  ports:
+  - port: 80
+    targetPort: 3000
