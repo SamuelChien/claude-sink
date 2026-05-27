@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sink-server
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sink-server
+  template:
+    metadata:
+      labels:
+        app: sink-server
+    spec:
+      containers:
+      - name: server
+        image: gcr.io/blobfish-ai-429200/claude-sink:latest
+        args: ["serve", "-p", "3000", "-b", "kafka.kafka.svc.cluster.local:29092"]
+        ports:
+        - containerPort: 3000
+        env:
+        - name: KAFKAJS_NO_PARTITIONER_WARNING
+          value: "1"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "50m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sink-server
+  namespace: kafka
+spec:
+  type: LoadBalancer
+  selector:
+    app: sink-server
+  ports:
+  - port: 80
+    targetPort: 3000

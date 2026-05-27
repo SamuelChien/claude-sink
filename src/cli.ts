@@ -5,6 +5,7 @@ import { runCode } from './commands/code';
 import { runAll } from './commands/all';
 import { runConsume } from './commands/consume';
 import { runSetup } from './commands/setup';
+import { startServer } from './server/index';
 import { setLogLevel } from './utils/logger';
 
 export function createCli(): Command {
@@ -20,6 +21,7 @@ export function createCli(): Command {
     .description('Ingest SKILL.md files from a directory')
     .argument('<dir>', 'Skills directory to scan')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
+    .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
     .option('--topic <name>', 'Kafka topic', 'sink.skills')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -31,6 +33,7 @@ export function createCli(): Command {
       applyLogLevel(opts);
       await runSkills(dir, {
         brokers: opts.brokers,
+        server: opts.server,
         topic: opts.topic,
         batchSize: parseInt(opts.batchSize, 10),
         dryRun: opts.dryRun,
@@ -44,6 +47,7 @@ export function createCli(): Command {
     .description('Ingest Claude sessions from ~/.claude (or specified dir)')
     .argument('[dir]', 'Claude directory (default: ~/.claude)')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
+    .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
     .option('--topic <name>', 'Kafka topic', 'sink.sessions')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -56,6 +60,7 @@ export function createCli(): Command {
       applyLogLevel(opts);
       await runSessions(dir, {
         brokers: opts.brokers,
+        server: opts.server,
         topic: opts.topic,
         batchSize: parseInt(opts.batchSize, 10),
         dryRun: opts.dryRun,
@@ -70,6 +75,7 @@ export function createCli(): Command {
     .description('Ingest source code files from a project directory')
     .argument('<dir>', 'Project directory to scan')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
+    .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
     .option('--topic <name>', 'Kafka topic', 'sink.code')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -82,6 +88,7 @@ export function createCli(): Command {
       applyLogLevel(opts);
       await runCode(dir, {
         brokers: opts.brokers,
+        server: opts.server,
         topic: opts.topic,
         batchSize: parseInt(opts.batchSize, 10),
         dryRun: opts.dryRun,
@@ -134,6 +141,21 @@ export function createCli(): Command {
         batchSize: parseInt(opts.batchSize, 10),
         fromBeginning: opts.fromBeginning,
         dryRun: opts.dryRun,
+      });
+    });
+
+  program
+    .command('serve')
+    .description('Start HTTP ingestion server (receives chunks, produces to Kafka)')
+    .option('-p, --port <port>', 'Server port', '3000')
+    .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
+    .option('-v, --verbose', 'Verbose logging', false)
+    .option('-q, --quiet', 'Suppress all output except errors', false)
+    .action(async (opts) => {
+      applyLogLevel(opts);
+      await startServer({
+        port: parseInt(opts.port, 10),
+        brokers: opts.brokers,
       });
     });
 

@@ -1,6 +1,7 @@
 import { CodeReader } from '../readers/code-reader';
 import { chunkCodeFile } from '../chunking/chunker';
 import { SinkProducer } from '../kafka/producer';
+import { SinkHttpClient } from '../server/client';
 import { buildKafkaConfig } from '../kafka/config';
 import logger from '../utils/logger';
 
@@ -12,6 +13,7 @@ export interface CodeCommandOptions {
   exclude?: string[];
   maxFileSize: number;
   limit: number;
+  server?: string;
 }
 
 export async function runCode(dir: string, options: CodeCommandOptions): Promise<void> {
@@ -20,6 +22,17 @@ export async function runCode(dir: string, options: CodeCommandOptions): Promise
     maxFileSize: options.maxFileSize,
     limit: options.limit,
   });
+
+  const files = await reader.readAll();
+  const chunks = files.map(chunkCodeFile);
+  logger.info(`Chunked ${chunks.length} code files → topic "${options.topic}"`);
+
+  if (options.server) {
+    const client = new SinkHttpClient(options.server, options.batchSize);
+    const sent = await client.sendChunks(options.topic, chunks);
+    logger.info(`Done: ${sent} code chunks sent via ${options.server}`);
+    return;
+  }
 
   const kafkaConfig = buildKafkaConfig(options.brokers);
   const producer = new SinkProducer(kafkaConfig, {
@@ -30,10 +43,6 @@ export async function runCode(dir: string, options: CodeCommandOptions): Promise
 
   try {
     await producer.connect();
-    const files = await reader.readAll();
-    const chunks = files.map(chunkCodeFile);
-
-    logger.info(`Chunked ${chunks.length} code files → topic "${options.topic}"`);
     const sent = await producer.sendChunks(chunks);
     logger.info(`Done: ${sent} code chunks sent`);
   } finally {
