@@ -8,12 +8,14 @@ import { runSetup } from './commands/setup';
 import { startServer } from './server/index';
 import { setLogLevel } from './utils/logger';
 
+const DEFAULT_PROJECT = process.env.SINK_PROJECT || '';
+
 export function createCli(): Command {
   const program = new Command();
 
   program
     .name('claude-sink')
-    .description('Ingest skills, Claude sessions, and code into Kafka topics')
+    .description('Sink skills, Claude sessions, and code to Pub/Sub or Kafka')
     .version('0.1.0');
 
   program
@@ -22,7 +24,7 @@ export function createCli(): Command {
     .argument('<dir>', 'Skills directory to scan')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
     .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
-    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
+    .option('--pubsub <project>', 'GCP project for Pub/Sub', DEFAULT_PROJECT || undefined)
     .option('--topic <name>', 'Kafka topic', 'sink.skills')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -52,7 +54,7 @@ export function createCli(): Command {
     .argument('[dir]', 'Claude directory (default: ~/.claude)')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
     .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
-    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
+    .option('--pubsub <project>', 'GCP project for Pub/Sub', DEFAULT_PROJECT || undefined)
     .option('--topic <name>', 'Kafka topic', 'sink.sessions')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -84,7 +86,7 @@ export function createCli(): Command {
     .argument('<dir>', 'Project directory to scan')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
     .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
-    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
+    .option('--pubsub <project>', 'GCP project for Pub/Sub', DEFAULT_PROJECT || undefined)
     .option('--topic <name>', 'Kafka topic', 'sink.code')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -138,7 +140,7 @@ export function createCli(): Command {
     .description('Consume and process messages from Kafka or Pub/Sub topics')
     .argument('<type>', 'Source type: skills | sessions | code | all')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
-    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
+    .option('--pubsub <project>', 'GCP project for Pub/Sub', DEFAULT_PROJECT || undefined)
     .option('--group-id <id>', 'Consumer group ID')
     .option('--batch-size <n>', 'Messages per processing batch', '50')
     .option('--from-beginning', 'Start from earliest offset', true)
@@ -177,7 +179,7 @@ export function createCli(): Command {
     .command('setup')
     .description('Provision topics and verify connectivity (Kafka or Pub/Sub)')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
-    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
+    .option('--pubsub <project>', 'GCP project for Pub/Sub', DEFAULT_PROJECT || undefined)
     .option('-v, --verbose', 'Verbose logging', false)
     .option('-q, --quiet', 'Suppress all output except errors', false)
     .action(async (opts) => {

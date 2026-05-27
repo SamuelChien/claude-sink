@@ -2,6 +2,7 @@ apiVersion: 1
 datasources:
   - name: Google Cloud Monitoring
     type: stackdriver
+    uid: gcp-monitoring
     access: proxy
     isDefault: true
     jsonData:
