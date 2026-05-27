@@ -22,6 +22,7 @@ export function createCli(): Command {
     .argument('<dir>', 'Skills directory to scan')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
     .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
+    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
     .option('--topic <name>', 'Kafka topic', 'sink.skills')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -41,6 +42,7 @@ export function createCli(): Command {
         maxDepth: parseInt(opts.maxDepth, 10),
         limit: parseInt(opts.limit, 10),
         force: opts.force,
+        pubsub: opts.pubsub,
       });
     });
 
@@ -50,6 +52,7 @@ export function createCli(): Command {
     .argument('[dir]', 'Claude directory (default: ~/.claude)')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
     .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
+    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
     .option('--topic <name>', 'Kafka topic', 'sink.sessions')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -71,6 +74,7 @@ export function createCli(): Command {
         since: opts.since,
         project: opts.project,
         force: opts.force,
+        pubsub: opts.pubsub,
       });
     });
 
@@ -80,6 +84,7 @@ export function createCli(): Command {
     .argument('<dir>', 'Project directory to scan')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
     .option('-s, --server <url>', 'Send via HTTP server instead of direct Kafka')
+    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
     .option('--topic <name>', 'Kafka topic', 'sink.code')
     .option('--batch-size <n>', 'Messages per batch', '50')
     .option('--dry-run', 'Parse and chunk without sending to Kafka', false)
@@ -101,6 +106,7 @@ export function createCli(): Command {
         maxFileSize: parseInt(opts.maxFileSize, 10),
         limit: parseInt(opts.limit, 10),
         force: opts.force,
+        pubsub: opts.pubsub,
       });
     });
 
@@ -129,9 +135,10 @@ export function createCli(): Command {
 
   program
     .command('consume')
-    .description('Consume and process messages from Kafka topics')
+    .description('Consume and process messages from Kafka or Pub/Sub topics')
     .argument('<type>', 'Source type: skills | sessions | code | all')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
+    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
     .option('--group-id <id>', 'Consumer group ID')
     .option('--batch-size <n>', 'Messages per processing batch', '50')
     .option('--from-beginning', 'Start from earliest offset', true)
@@ -147,6 +154,7 @@ export function createCli(): Command {
         batchSize: parseInt(opts.batchSize, 10),
         fromBeginning: opts.fromBeginning,
         dryRun: opts.dryRun,
+        pubsub: opts.pubsub,
       });
     });
 
@@ -167,13 +175,14 @@ export function createCli(): Command {
 
   program
     .command('setup')
-    .description('Verify Kafka connectivity, provision topics, run hello-world test')
+    .description('Provision topics and verify connectivity (Kafka or Pub/Sub)')
     .option('-b, --brokers <hosts>', 'Kafka broker addresses', 'localhost:9092')
+    .option('--pubsub <project>', 'Use Google Pub/Sub instead of Kafka')
     .option('-v, --verbose', 'Verbose logging', false)
     .option('-q, --quiet', 'Suppress all output except errors', false)
     .action(async (opts) => {
       applyLogLevel(opts);
-      await runSetup({ brokers: opts.brokers });
+      await runSetup({ brokers: opts.brokers, pubsub: opts.pubsub });
     });
 
   return program;
