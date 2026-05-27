@@ -1,0 +1,142 @@
+{
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Is Data Flowing?",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "title": "Messages Published (last 15m)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 1 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/topic/send_message_operation_count", "filters": ["resource.label.topic_id", "=~", "sink-.*"], "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_DELTA", "alignmentPeriod": "900s", "groupBys": ["resource.label.topic_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }, "noValue": "0" } },
+      "options": { "colorMode": "background", "textMode": "value_and_name", "graphMode": "area" }
+    },
+    {
+      "title": "Messages Delivered (last 15m)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 1 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/subscription/pull_message_operation_count", "filters": ["resource.label.subscription_id", "=~", "sink-.*"], "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_DELTA", "alignmentPeriod": "900s", "groupBys": ["resource.label.subscription_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }, "noValue": "0" } },
+      "options": { "colorMode": "background", "textMode": "value_and_name", "graphMode": "area" }
+    },
+    {
+      "title": "Undelivered Messages (backlog)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/subscription/num_undelivered_messages", "filters": ["resource.label.subscription_id", "=~", "sink-.*"], "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_MEAN", "alignmentPeriod": "60s", "groupBys": ["resource.label.subscription_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 100 }] }, "noValue": "0" } },
+      "options": { "colorMode": "background", "textMode": "value_and_name", "graphMode": "none" }
+    },
+    {
+      "title": "Publish & Consume Rate",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }
+    },
+    {
+      "title": "Publish Rate (messages/min)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 7 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/topic/send_message_operation_count", "filters": ["resource.label.topic_id", "=~", "sink-(skills|sessions|code)"], "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE", "alignmentPeriod": "60s", "groupBys": ["resource.label.topic_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 25, "lineWidth": 2, "spanNulls": true }, "unit": "msg/min" } }
+    },
+    {
+      "title": "Consume Rate (ack messages/min)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 7 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/subscription/ack_message_operation_count", "filters": ["resource.label.subscription_id", "=~", "sink-.*-processor"], "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE", "alignmentPeriod": "60s", "groupBys": ["resource.label.subscription_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 25, "lineWidth": 2, "spanNulls": true }, "unit": "msg/min" } }
+    },
+    {
+      "title": "Backlog Over Time",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }
+    },
+    {
+      "title": "Undelivered Messages (backlog trend)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/subscription/num_undelivered_messages", "filters": ["resource.label.subscription_id", "=~", "sink-.*-processor"], "crossSeriesReducer": "REDUCE_NONE", "perSeriesAligner": "ALIGN_MEAN", "alignmentPeriod": "60s", "groupBys": ["resource.label.subscription_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 15, "lineWidth": 2, "spanNulls": true, "thresholdsStyle": { "mode": "line" } }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 100 }, { "color": "red", "value": 1000 }] } } }
+    },
+    {
+      "title": "Analyzed Output",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }
+    },
+    {
+      "title": "Analyzed Output Rate (messages/min)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 26 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/topic/send_message_operation_count", "filters": ["resource.label.topic_id", "=~", "sink-.*-analyzed"], "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE", "alignmentPeriod": "60s", "groupBys": ["resource.label.topic_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 25, "lineWidth": 2, "spanNulls": true }, "unit": "msg/min" } }
+    },
+    {
+      "title": "DLQ Messages",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 26 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/topic/send_message_operation_count", "filters": ["resource.label.topic_id", "=~", "sink-.*-dlq"], "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_DELTA", "alignmentPeriod": "3600s", "groupBys": ["resource.label.topic_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 }] }, "noValue": "0" } },
+      "options": { "colorMode": "background", "textMode": "value_and_name", "graphMode": "area" }
+    },
+    {
+      "title": "Message Size & Throughput",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 }
+    },
+    {
+      "title": "Bytes Published (per topic)",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 35 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/topic/byte_cost", "filters": ["resource.label.topic_id", "=~", "sink-.*"], "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE", "alignmentPeriod": "60s", "groupBys": ["resource.label.topic_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20, "lineWidth": 2 }, "unit": "Bps" } }
+    },
+    {
+      "title": "Oldest Unacked Message Age",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 35 },
+      "datasource": "Google Cloud Monitoring",
+      "targets": [
+        { "queryType": "metrics", "metricQuery": { "metricType": "pubsub.googleapis.com/subscription/oldest_unacked_message_age", "filters": ["resource.label.subscription_id", "=~", "sink-.*-processor"], "crossSeriesReducer": "REDUCE_NONE", "perSeriesAligner": "ALIGN_MAX", "alignmentPeriod": "60s", "groupBys": ["resource.label.subscription_id"] } }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 10, "lineWidth": 2 }, "unit": "s", "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 300 }, { "color": "red", "value": 3600 }] } } }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["pubsub", "claude-sink"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "Claude Sink — Pub/Sub Ingestion Health",
+  "uid": "claude-sink-pubsub-health",
+  "version": 1,
+  "refresh": "15s"
+}

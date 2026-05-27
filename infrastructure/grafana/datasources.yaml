@@ -1,0 +1,9 @@
+apiVersion: 1
+datasources:
+  - name: Google Cloud Monitoring
+    type: stackdriver
+    access: proxy
+    isDefault: true
+    jsonData:
+      authenticationType: gce
+      defaultProject: blobfish-ai-429200
